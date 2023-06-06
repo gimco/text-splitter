@@ -1,14 +1,11 @@
 <script>
-/**
- * @type {HTMLTextAreaElement}
- */
-let textarea
+import { onMount } from 'svelte';
 
 const pasteable = !!navigator.clipboard.readText
 
 function paste() {
   navigator.clipboard.readText()
-  .then(cliptext => textarea.value = cliptext)
+  .then(cliptext => text = cliptext)
   .then(trocear)
 }
 
@@ -18,66 +15,89 @@ let text = ""
  */
 let parts = []
 let curpart = 0
+let paging = false
+$: paging = parts.length > 0
+
 function trocear() {
-  text = textarea.value
-  parts = splitText(text) || [""]
-  showPart(0)
+  setTimeout(() => {
+    if (text.trim().length == 0) return
+    localStorage.setItem("text", text)
+    parts = splitText(text) || []
+    if (parts.length > 0) {
+      showPart(curpart)
+    }
+  }, 0)
 }
 
 /**
  * @param {string} text
  */
 function splitText(text) {
-  const chunkSize = 4900;
-  const regex = new RegExp(`.{1,${chunkSize}}`, 'gs');
-  const chunks = text.match(regex);
+  const limit = 4900
+  let chunks = []
+  while (text.length > limit) {
+    let nlpos = text.substr(0, limit).lastIndexOf("\n")
+    if (nlpos <= 0) nlpos = limit
+    chunks.push(text.substring(0, nlpos))
+    text = text.substring(nlpos)
+  }
+  chunks.push(text)
   return chunks;
 }
 
 function reset() {
-  textarea.value = text = ""
+  localStorage.clear()
+  text = ""
+  parts = []
+  curpart = 0
   copy()
 }
 
 function showPart(part) {
   curpart = part
-  textarea.value = parts[curpart]
+  text = parts[curpart]
+  localStorage.setItem("curpart", curpart.toString())
   copy()
 }
 
-function prev() {
-  showPart(curpart - 1)
+/**
+ * @type {HTMLTextAreaElement}
+ */
+let textarea
+function copy () {
+  setTimeout(() => {
+    textarea.select()
+    navigator.clipboard.writeText(text)
+  }, 0)
 }
 
-function next() {
-  showPart(curpart + 1)
-}
-
-function copy() {
-  textarea.select()
-  navigator.clipboard.writeText(textarea.value)
-}
-
+onMount(async () => {
+  text = localStorage.getItem("text") || ""
+  curpart = +localStorage.getItem("curpart")
+  if (!!text) {
+    trocear()
+  }
+});
 </script>
 
-{#if text == ""}
+{#if !paging}
 <div>
   {#if pasteable}
   <button on:click={paste}>Paste!</button>
   {:else}
-  <button on:click={trocear}>Split!</button>
+  <button on:click={trocear} disabled={text.length == 0}>Split!</button>
   {/if}
 </div>
 {:else}
 <div>
   <button on:click={reset}>Reset</button>
-  <button disabled={curpart == 0} on:click={prev}>Prev</button>
-  <button disabled={curpart + 1 == parts.length} on:click={next}>Next</button>
+  <button disabled={curpart == 0} on:click={() => showPart(curpart - 1)}>Prev</button>
+  <button disabled={curpart + 1 == parts.length} on:click={() => showPart(curpart + 1)}>Next</button>
   <button on:click={copy}>Copy</button>
 </div>
 {/if}
-<textarea on:paste={() => setTimeout(trocear, 0)} bind:this={textarea}></textarea>
-{#if text != ""}
+<textarea on:paste={trocear} readonly={parts.length > 0} bind:this={textarea} bind:value={text}></textarea>
+{#if paging}
 <small>Part {curpart+1} of {parts.length} ({parts[curpart].length} currently, {text.length} total characters)</small>
 {/if}
 
