@@ -19,14 +19,12 @@ let paging = false
 $: paging = parts.length > 0
 
 function trocear() {
-  setTimeout(() => {
-    if (text.trim().length == 0) return
-    localStorage.setItem("text", text)
-    parts = splitText(text) || []
-    if (parts.length > 0) {
-      showPart(curpart)
-    }
-  }, 0)
+  if (text.trim().length == 0) return
+  localStorage.setItem("text", text)
+  parts = splitText(text) || []
+  if (parts.length > 0) {
+    showPart(curpart)
+  }
 }
 
 /**
@@ -65,10 +63,9 @@ function showPart(part) {
  */
 let textarea
 function copy () {
-  setTimeout(() => {
-    textarea.select()
-    navigator.clipboard.writeText(text)
-  }, 0)
+  textarea.value = text
+  textarea.select()
+  navigator.clipboard.writeText(text)
 }
 
 onMount(async () => {
